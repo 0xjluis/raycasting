@@ -1,0 +1,20 @@
+{
+  "name": "raycast",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/three": "^0.161.2",
+    "three": "^0.161.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  }
+}
