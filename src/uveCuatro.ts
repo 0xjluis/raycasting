@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 
 const scene = new THREE.Scene();
-const cameraTresD = new THREE.PerspectiveCamera( 75, 1, 0.1, 1000 );
 const frustumSize = 10;
 
 const heigth  = 750;
@@ -44,6 +43,7 @@ function onClick(event:any) {
     mouseY = (mouse.y * (camera.top - camera.bottom) / 2)+camera.position.y
 
     console.log(`click x -> ${mouseX}  y ->${mouseY}`);
+    printRayPosition();
 }
 
 
@@ -53,8 +53,10 @@ renderer.domElement.addEventListener('mousemove', onMouseMove);
 
 function refreshPosition(mouseX:number, mouseY:number){
     updateRays(mouseX, mouseY);
+    clearCollision();
     clearCasted();
     castRays(mouseX, mouseY);
+    printColliderShape();
 }
 
 ////////--------------------
@@ -68,6 +70,26 @@ function createWall(xA:number, yA:number, xB:number, yB:number){
     walls.push(wall);
 }
 
+function createBox() {
+    const topLeftX = frustumSize * aspect / -2;
+    const topLeftY = frustumSize / 2;
+
+    const topRightX = frustumSize * aspect / 2;
+    const topRightY = frustumSize / 2;
+
+    const bottomLeftX = frustumSize * aspect / -2;
+    const bottomLeftY = frustumSize / -2;
+
+    const bottomRightX = frustumSize * aspect / 2;
+    const bottomRightY = frustumSize / -2;
+
+    createWall(topLeftX, topLeftY, topRightX, topRightY);
+    createWall(topRightX, topRightY, bottomRightX, bottomRightY);
+    createWall(bottomRightX, bottomRightY, bottomLeftX, bottomLeftY);
+    createWall(bottomLeftX, bottomLeftY, topLeftX, topLeftY);
+}
+
+
 function createManyWall(nWalls:number){
     for(let i = 1; i<=nWalls; i++){
         const xA = Math.random() * 10 - 5; 
@@ -77,12 +99,13 @@ function createManyWall(nWalls:number){
 
         createWall(xA, yA, xB, yB);
     }
+    createBox()
     printWalls();
 }
 
 function printWalls(){
     for(let i = 0; i<walls.length; i++){
-        const material = new THREE.LineBasicMaterial( { color: 0x0000ff });
+        const material = new THREE.LineBasicMaterial( { color: 0xff0000 });
         const geometry = new THREE.BufferGeometry().setFromPoints( walls[i] );
         const line = new THREE.Line( geometry, material,);
         scene.add(line);
@@ -117,6 +140,11 @@ function getManyRays(nRays:number){
     raysPostion = manyRays(nRays, 0, 0);
 }
 
+function printRayPosition(){
+    console.log(raysPostion);
+}
+
+
 function updateRays(mouseX:number, mouseY:number){
     for (let i = 0; i < raysPostion.length; i++) {
         const diffX = raysPostion[i][1].x - raysPostion[i][0].x;
@@ -138,11 +166,13 @@ function clearCasted(){
     castedRays = [];
 }
 
-
+let collisionPoints:any = [];
 function castRays(mouseX:number, mouseY:number) {
     for (let i = 0; i < raysPostion.length; i++) {
         let closestIntersection = null;
         let shortestDistance = Infinity;
+
+        //console.log(`Ray #${i + 1} Start`);
 
         for (let j = 0; j < walls.length; j++) {
             const wall = walls[j];
@@ -150,14 +180,19 @@ function castRays(mouseX:number, mouseY:number) {
 
             const x1 = wall[0].x, y1 = wall[0].y;
             const x2 = wall[1].x, y2 = wall[1].y;
-            const x3 = mouseX, y3 = mouseY;
+            const x3 = ray[0].x, y3 = ray[0].y;
             const x4 = ray[1].x, y4 = ray[1].y;
 
             const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-            if (denom === 0) continue; 
+
+            if (denom === 0) {
+                continue;
+            }
 
             const intersectX = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / denom;
             const intersectY = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / denom;
+
+           //console.log(`Wall #${j + 1}: Intersect at (${intersectX}, ${intersectY})`);
 
             const tolerance = 1e-6;
 
@@ -167,34 +202,66 @@ function castRays(mouseX:number, mouseY:number) {
                 intersectY >= Math.min(y3, y4) - tolerance && intersectY <= Math.max(y3, y4) + tolerance) {
 
                 const distance = Math.hypot(mouseX - intersectX, mouseY - intersectY);
+                //console.log(`Intersection within bounds. Distance: ${distance}`);
+
                 if (distance < shortestDistance) {
                     shortestDistance = distance;
                     closestIntersection = { x: intersectX, y: intersectY };
                 }
+            } else {
+                //console.log(`Intersection out of bounds. X: ${intersectX}, Y: ${intersectY}`);
             }
         }
 
         if (closestIntersection) {
+            //console.log(`Closest intersection at (${closestIntersection.x}, ${closestIntersection.y}).`);
             createLines(mouseX, mouseY, closestIntersection.x, closestIntersection.y);
+            collisionPoints.push(new THREE.Vector3( closestIntersection.x, closestIntersection.y, shortestDistance ));
+        } else {
+            ///console.log(`😁 No intersection found for ray #${i + 1}.`);
         }
     }
 }
 
 let castedRays:any = [];
 function createLines(mouseX:number, mouseY:number, intersectX:number, intersectY:number){
-        const points = [];
-        points.push( new THREE.Vector3( mouseX, mouseY, 0 ) );
-        points.push( new THREE.Vector3( intersectX, intersectY, 0 ) );
+    const points = [];
+    points.push( new THREE.Vector3( mouseX, mouseY, 0 ) );
+    points.push( new THREE.Vector3( intersectX, intersectY, 0 ) );
 
-        const material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
-        const geometry = new THREE.BufferGeometry().setFromPoints( points );
-        const line = new THREE.Line( geometry, material,);
-        castedRays.push(line)
-        scene.add( line );
+    const material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+    const geometry = new THREE.BufferGeometry().setFromPoints( points );
+    const line = new THREE.Line( geometry, material,);
+    castedRays.push(line)
+    scene.add( line );
 }
 
-createManyWall(5);
-getManyRays(181);
+function closeCollider(){
+    const start = collisionPoints[0];
+    collisionPoints.push(new THREE.Vector3( start.x, start.y, 0 ));
+}
+
+let printedCollider:any = null;
+function printColliderShape(){
+    closeCollider();
+    const material = new THREE.LineBasicMaterial( { color: 0x00ff00 });
+    const geometry = new THREE.BufferGeometry().setFromPoints( collisionPoints );
+    const line = new THREE.Line( geometry, material,);
+    printedCollider = line;
+    scene.add(line);
+}
+
+function clearCollision(){
+    scene.remove( printedCollider);    
+    collisionPoints = [];
+    printedCollider = []
+}
+
+
+
+
+createManyWall(6);
+getManyRays(90);
 
 function animate() {
     requestAnimationFrame(animate);
@@ -202,3 +269,6 @@ function animate() {
 }
 
 animate();
+
+
+
