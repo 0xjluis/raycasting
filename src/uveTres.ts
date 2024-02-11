@@ -159,10 +159,12 @@ function castRays(mouseX:number, mouseY:number) {
             const intersectX = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / denom;
             const intersectY = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / denom;
 
-            if (intersectX >= Math.min(x1, x2) && intersectX <= Math.max(x1, x2) &&
-                intersectX >= Math.min(x3, x4) && intersectX <= Math.max(x3, x4) &&
-                intersectY >= Math.min(y1, y2) && intersectY <= Math.max(y1, y2) &&
-                intersectY >= Math.min(y3, y4) && intersectY <= Math.max(y3, y4)) {
+            const tolerance = 1e-6;
+
+            if (intersectX >= Math.min(x1, x2) - tolerance && intersectX <= Math.max(x1, x2) + tolerance &&
+                intersectX >= Math.min(x3, x4) - tolerance && intersectX <= Math.max(x3, x4) + tolerance &&
+                intersectY >= Math.min(y1, y2) - tolerance && intersectY <= Math.max(y1, y2) + tolerance &&
+                intersectY >= Math.min(y3, y4) - tolerance && intersectY <= Math.max(y3, y4) + tolerance) {
 
                 const distance = Math.hypot(mouseX - intersectX, mouseY - intersectY);
                 if (distance < shortestDistance) {
