@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 
+////////---------------SCENE ONE
+
 const scene = new THREE.Scene();
 const frustumSize = 10;
 
-const heigth  = 750;
-const width  = 750;
+const heigth  = 400;
+const width  = 800;
 const aspect = width / heigth;
 const camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 1000);
 
@@ -12,14 +14,13 @@ camera.position.set( 0, 0, 50 );
 camera.lookAt( 0, 0, 0 );
 
 const renderer = new THREE.WebGLRenderer();
-renderer.setSize( heigth, width );
+renderer.setSize(width, heigth);
 document.body.appendChild( renderer.domElement );
-
 
 let mouseX = 0;
 let mouseY = 0;
 
-///------- //  canvas event listeners 
+/////////---------- EVENTS 
 
 function onMouseMove(event:any) {
     const mouse = new THREE.Vector2();
@@ -57,6 +58,9 @@ function refreshPosition(mouseX:number, mouseY:number){
     clearCasted();
     castRays(mouseX, mouseY);
     printColliderShape();
+    clearPrintedSegments();
+    printPartialWalls()
+    clearPartialSegments();
 }
 
 ////////--------------------
@@ -68,6 +72,7 @@ function createWall(xA:number, yA:number, xB:number, yB:number){
     wall.push(new THREE.Vector2(xA, yA));
     wall.push(new THREE.Vector2(xB, yB));
     walls.push(wall);
+    wallsData.push({intersections: []});
 }
 
 function createBox() {
@@ -99,7 +104,7 @@ function createManyWall(nWalls:number){
 
         createWall(xA, yA, xB, yB);
     }
-    createBox()
+    //createBox()
     printWalls();
 }
 
@@ -125,7 +130,7 @@ function createRay(xA:number, yA:number, rad:number){
 
 function manyRays(nRays:number, xA:number, yA:number){
     let rays:any = []
-    const degrees = 360 / nRays;
+    const degrees = 60 / nRays;
     const rad = degrees * (Math.PI/180);
 
     for(let i = 1; i<=nRays; i++){
@@ -144,7 +149,6 @@ function printRayPosition(){
     console.log(raysPostion);
 }
 
-
 function updateRays(mouseX:number, mouseY:number){
     for (let i = 0; i < raysPostion.length; i++) {
         const diffX = raysPostion[i][1].x - raysPostion[i][0].x;
@@ -158,7 +162,6 @@ function updateRays(mouseX:number, mouseY:number){
     }
 }
 
-
 function clearCasted(){
     for(let i = 0; i<castedRays.length;i++ ){
         scene.remove( castedRays[i]);
@@ -166,12 +169,15 @@ function clearCasted(){
     castedRays = [];
 }
 
+let newSegments:any = [];
 let collisionPoints:any = [];
+let wallsData:any = []
 function castRays(mouseX:number, mouseY:number) {
+    wallsData.forEach((data:any) => data.intersections = []);
     for (let i = 0; i < raysPostion.length; i++) {
         let closestIntersection = null;
         let shortestDistance = Infinity;
-
+        let wallN = -1;
         //console.log(`Ray #${i + 1} Start`);
 
         for (let j = 0; j < walls.length; j++) {
@@ -207,21 +213,81 @@ function castRays(mouseX:number, mouseY:number) {
                 if (distance < shortestDistance) {
                     shortestDistance = distance;
                     closestIntersection = { x: intersectX, y: intersectY };
+                    wallN = j;
                 }
             } else {
                 //console.log(`Intersection out of bounds. X: ${intersectX}, Y: ${intersectY}`);
             }
         }
 
-        if (closestIntersection) {
+        if (closestIntersection && wallN === -1) {
+            console.log("😁😁😁😁 WUTTTTTT???")
+        }
+
+        if (closestIntersection && wallN !== -1) {
             //console.log(`Closest intersection at (${closestIntersection.x}, ${closestIntersection.y}).`);
             createLines(mouseX, mouseY, closestIntersection.x, closestIntersection.y);
             collisionPoints.push(new THREE.Vector3( closestIntersection.x, closestIntersection.y, shortestDistance ));
-        } else {
+            wallsData[wallN].intersections.push({
+                rayIndex: i,
+                point: closestIntersection,
+                distance: shortestDistance
+            });
+                } else {
             ///console.log(`😁 No intersection found for ray #${i + 1}.`);
         }
     }
+
+    for (let k = 0; k < wallsData.length; k++) {
+        if (wallsData[k].intersections.length === 0) {
+            continue;
+        }
+
+        let segments = [];
+        wallsData[k].intersections.sort((a:any, b:any) => a.point.x - b.point.x);
+
+        for (let l = 0; l <= wallsData[k].intersections.length; l++) {
+            if (l === 0) { 
+                const pointOneX = walls[k][0].x;
+                const pointOneY = walls[k][0].y;
+                const pointTwoX = wallsData[k].intersections[0].point.x;
+                const pointTwoY = wallsData[k].intersections[0].point.y;
+                const heigth = wallsData[k].intersections[0].distance;
+                segments.push([pointOneX, pointOneY, pointTwoX, pointTwoY, heigth]);
+                continue;
+            }
+            if (l === wallsData[k].intersections.length) { 
+                const pointOneX = wallsData[k].intersections[l-1].point.x;
+                const pointOneY = wallsData[k].intersections[l-1].point.y;
+                const pointTwoX = walls[k][1].x; 
+                const pointTwoY = walls[k][1].y;
+                const heigth = wallsData[k].intersections[l-1].distance;
+                segments.push([pointOneX, pointOneY, pointTwoX, pointTwoY, heigth]);
+                break; 
+            }
+
+            const pointOneX = wallsData[k].intersections[l-1].point.x;
+            const pointOneY = wallsData[k].intersections[l-1].point.y;
+            const pointTwoX = wallsData[k].intersections[l].point.x;
+            const pointTwoY = wallsData[k].intersections[l].point.y;
+            const heigth = wallsData[k].intersections[l].distance;
+            segments.push([pointOneX, pointOneY, pointTwoX, pointTwoY, heigth]);
+        }
+        newSegments.push(segments);
+    }
+
+    console.log(newSegments);
 }
+
+function getRandomInt(max:number) {
+  return Math.floor(Math.random() * max);
+}
+
+
+function clearPartialSegments(){
+    newSegments = [];
+}
+
 
 let castedRays:any = [];
 function createLines(mouseX:number, mouseY:number, intersectX:number, intersectY:number){
@@ -243,7 +309,7 @@ function closeCollider(){
 
 let printedCollider:any = null;
 function printColliderShape(){
-    closeCollider();
+    //closeCollider();
     const material = new THREE.LineBasicMaterial( { color: 0x00ff00 });
     const geometry = new THREE.BufferGeometry().setFromPoints( collisionPoints );
     const line = new THREE.Line( geometry, material,);
@@ -258,17 +324,71 @@ function clearCollision(){
 }
 
 
+createManyWall(1);
+getManyRays(10);
+
+////////---------------------- 3D SCENE
 
 
-createManyWall(6);
-getManyRays(30);
+const sceneDos = new THREE.Scene();
+const cameraDos = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 1000);
+
+cameraDos.position.set( 0, 0, 50 );
+cameraDos.lookAt( 0, 0, 0 );
+
+const rendererDos = new THREE.WebGLRenderer();
+rendererDos.setSize( width, heigth );
+document.body.appendChild( rendererDos.domElement );
+
+
+let printedSegments:any = [];
+function printPartialWalls() {
+    for (let i = 0; i < newSegments.length; i++) {
+        const group = newSegments[i];
+
+        for (let j = 0; j < group.length; j++) {
+            const segment = group[j];
+            const xA = segment[0], yA = segment[1], xB = segment[2], yB = segment[3];
+            const thickness = (1/segment[4]); 
+
+            const length = Math.sqrt((xB - xA) ** 2 + (yB - yA) ** 2);
+            const angle = Math.atan2(yB - yA, xB - xA);
+
+            let r:number = getRandomInt(255)
+            let g = getRandomInt(255)
+            let b = getRandomInt(255)
+
+            let rgb = `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`  // !!! Esto da error hay que paddear
+
+            const geometry = new THREE.PlaneGeometry(length, thickness);
+            const material = new THREE.MeshBasicMaterial({ color: rgb, side: THREE.DoubleSide });
+            const plane = new THREE.Mesh(geometry, material);
+
+            const midX = (xA + xB) / 2;
+            const midY = (yA + yB) / 2;
+            plane.position.set(midX, midY, 0); 
+            plane.rotation.z = angle; 
+
+            printedSegments.push(plane)
+            sceneDos.add(plane);
+        }
+    }
+}
+
+function clearPrintedSegments(){
+    for(let i = 0; i<printedSegments.length;i++ ){
+        sceneDos.remove(printedSegments[i]);
+    }
+    printedSegments = [];
+}
+
+
+////////---------------------- Animation
 
 function animate() {
     requestAnimationFrame(animate);
     renderer.render(scene, camera);
+    rendererDos.render(sceneDos, cameraDos);
 }
 
 animate();
-
-
-
