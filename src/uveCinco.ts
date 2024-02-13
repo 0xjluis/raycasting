@@ -279,10 +279,9 @@ function castRays(mouseX:number, mouseY:number) {
     console.log(newSegments);
 }
 
-function getRandomInt(max:number) {
-  return Math.floor(Math.random() * max);
+function getRandomInt(max: number): number {
+    return Math.floor(Math.random() * Math.floor(max));
 }
-
 
 function clearPartialSegments(){
     newSegments = [];
@@ -324,7 +323,7 @@ function clearCollision(){
 }
 
 
-createManyWall(1);
+createManyWall(10);
 getManyRays(10);
 
 ////////---------------------- 3D SCENE
@@ -349,18 +348,18 @@ function printPartialWalls() {
         for (let j = 0; j < group.length; j++) {
             const segment = group[j];
             const xA = segment[0], yA = segment[1], xB = segment[2], yB = segment[3];
-            const thickness = (1/segment[4]); 
+            const thickness = (segment[4]); 
 
             const length = Math.sqrt((xB - xA) ** 2 + (yB - yA) ** 2);
             const angle = Math.atan2(yB - yA, xB - xA);
 
-            let r:number = getRandomInt(255)
-            let g = getRandomInt(255)
-            let b = getRandomInt(255)
+            let r = getRandomInt(256); 
+            let g = getRandomInt(256);
+            let b = getRandomInt(256);
+          
+            let rgb = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 
-            let rgb = `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`  // !!! Esto da error hay que paddear
-
-            const geometry = new THREE.PlaneGeometry(length, thickness);
+            const geometry = new THREE.PlaneGeometry(1, 1); // Ajusta según tus necesidades
             const material = new THREE.MeshBasicMaterial({ color: rgb, side: THREE.DoubleSide });
             const plane = new THREE.Mesh(geometry, material);
 
