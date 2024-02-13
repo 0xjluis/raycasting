@@ -261,7 +261,7 @@ function clearCollision(){
 
 
 createManyWall(6);
-getManyRays(90);
+getManyRays(30);
 
 function animate() {
     requestAnimationFrame(animate);
