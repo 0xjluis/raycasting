@@ -45,6 +45,7 @@ function onClick(event:any) {
 
     console.log(`click x -> ${mouseX}  y ->${mouseY}`);
     printRayPosition();
+    logLength();
 }
 
 
@@ -58,9 +59,12 @@ function refreshPosition(mouseX:number, mouseY:number){
     clearCasted();
     castRays(mouseX, mouseY);
     printColliderShape();
-    clearPrintedSegments();
-    printPartialWalls()
+    //clearPrintedSegments();
+    //printPartialWalls()
     clearPartialSegments();
+    clearLength();
+    calcLength();
+    printCosas()
 }
 
 ////////--------------------
@@ -180,10 +184,10 @@ function clearCasted(){
 
 let newSegments:any = [];
 let collisionPoints:any = [];
+let collisionData:any = [];
 let wallsData:any = []
 function castRays(mouseX:number, mouseY:number) {
     wallsData.forEach((data:any) => data.intersections = []);
-    let minX = Infinity;
     for (let i = 0; i < raysPostion.length; i++) {
         let closestIntersection = null;
         let shortestDistance = Infinity;
@@ -238,57 +242,21 @@ function castRays(mouseX:number, mouseY:number) {
             //console.log(`Closest intersection at (${closestIntersection.x}, ${closestIntersection.y}).`);
             createLines(mouseX, mouseY, closestIntersection.x, closestIntersection.y);
             collisionPoints.push(new THREE.Vector3( closestIntersection.x, closestIntersection.y, shortestDistance ));
+            const dataCollision = { x:closestIntersection.x, y:closestIntersection.y , z: shortestDistance, wall: wallN}
+            collisionData.push(dataCollision)
             wallsData[wallN].intersections.push({
                 rayIndex: i,
                 point: closestIntersection,
                 distance: shortestDistance
             });
-            if(closestIntersection.x < minX){
-                minX = closestIntersection.x
-            }
+            
         } else {
             ///console.log(`😁 No intersection found for ray #${i + 1}.`);
         }
     }
 
 
-    for (let k = 0; k < wallsData.length; k++) {
-        if (wallsData[k].intersections.length === 0) {
-            continue;
-        }
-
-        let segments = [];
-        wallsData[k].intersections.sort((a:any, b:any) => a.point.x - b.point.x);
-
-        for (let l = 0; l <= wallsData[k].intersections.length; l++) {
-            if (l === 0) { 
-                const pointOneX = walls[k][0].x - minX;
-                const pointOneY = walls[k][0].y;
-                const pointTwoX = wallsData[k].intersections[0].point.x - minX;
-                const pointTwoY = wallsData[k].intersections[0].point.y;
-                const heigth = wallsData[k].intersections[0].distance;
-                segments.push([pointOneX, pointOneY, pointTwoX, pointTwoY, heigth]);
-                continue;
-            }
-            if (l === wallsData[k].intersections.length) { 
-                const pointOneX = wallsData[k].intersections[l-1].point.x - minX;
-                const pointOneY = wallsData[k].intersections[l-1].point.y;
-                const pointTwoX = walls[k][1].x - minX; 
-                const pointTwoY = walls[k][1].y;
-                const heigth = wallsData[k].intersections[l-1].distance;
-                segments.push([pointOneX, pointOneY, pointTwoX, pointTwoY, heigth]);
-                break; 
-            }
-
-            const pointOneX = wallsData[k].intersections[l-1].point.x - minX;
-            const pointOneY = wallsData[k].intersections[l-1].point.y;
-            const pointTwoX = wallsData[k].intersections[l].point.x - minX;
-            const pointTwoY = wallsData[k].intersections[l].point.y;
-            const heigth = wallsData[k].intersections[l].distance;
-            segments.push([pointOneX, pointOneY, pointTwoX, pointTwoY, heigth]);
-        }
-        newSegments.push(segments);
-    }
+   
 
     //console.log(newSegments);
 }
@@ -323,6 +291,7 @@ function closeCollider(){
 let printedCollider:any = null;
 function printColliderShape(){
     //closeCollider();
+    //console.log(collisionPoints)
     const material = new THREE.LineBasicMaterial( { color: 0x00ff00 });
     const geometry = new THREE.BufferGeometry().setFromPoints( collisionPoints );
     const line = new THREE.Line( geometry, material,);
@@ -333,13 +302,14 @@ function printColliderShape(){
 function clearCollision(){
     scene.remove( printedCollider);    
     collisionPoints = [];
-    printedCollider = []
+    printedCollider = [];
+    collisionData = [];
 }
 
 
-createManyWall(1);
+createManyWall(10);
 //createVericalWall();
-getManyRays(3);
+getManyRays(360);
 
 ////////---------------------- 3D SCENE
 
@@ -354,49 +324,67 @@ const rendererDos = new THREE.WebGLRenderer();
 rendererDos.setSize( width, heigth );
 document.body.appendChild( rendererDos.domElement );
 
+function clearLength(){
+    for(let i = 0; i<printedLengths.length;i++ ){
+        sceneDos.remove( printedLengths[i]);
+    }
+    lengths = [];
+    printedLengths = [];
+}
 
-let printedSegments:any = [];
-function printPartialWalls() {
-    for (let i = 0; i < newSegments.length; i++) {
-        const group = newSegments[i];
+let lengths:any = [];
+function calcLength(){
+    let xPosition = -10;
+    for (let i = 0; i < collisionData.length - 1; i++) {
+        const puntoInicio = collisionData[i];
+        const puntoFin = collisionData[i + 1];
 
-        for (let j = 0; j < group.length; j++) {
+        const longitud1 = Math.sqrt(((puntoFin.x - puntoInicio.x) ** 2) + ((puntoFin.y - puntoInicio.y) ** 2));
+        const segmentStartX = xPosition + longitud1 / 2;
+
+        if(collisionData[i].wall !== collisionData[i+1].wall){
+            continue;
+        }
+
         let r = getRandomInt(256); 
         let g = getRandomInt(256);
         let b = getRandomInt(256);
       
         let rgb = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 
-            const segment = group[j];
-            const xA = segment[0], yA = segment[1], xB = segment[2], yB = segment[1]; // Usa yA para ambos puntos
-            const thickness = (segment[4]); 
-            const distancia = thickness
-            const inversaD = 10/distancia
-            //const decimaInD = inversaD *2
-            
-            const length = Math.abs(xB - xA);
-            const longitud1 = Math.sqrt(((xB - xA) ** 2) + ((yB - yA) ** 2));
+        lengths.push([
+            segmentStartX, longitud1, puntoInicio.z, puntoFin.z, rgb
+        ]);
 
-            const geometry = new THREE.PlaneGeometry(longitud1, 1); 
-            const material = new THREE.MeshBasicMaterial({ color: rgb, side: THREE.DoubleSide });
-            const plane = new THREE.Mesh(geometry, material);
-
-            // Posiciona el plano en el punto medio del segmento ajustado
-            const midX = (xA + xB) / 2;
-            plane.position.set(xA, j, 1); // Ajusta Z si es necesario
-
-            printedSegments.push(plane);
-            sceneDos.add(plane);
-        }
+        xPosition = xPosition + longitud1;
     }
 }
 
-function clearPrintedSegments(){
-    for(let i = 0; i<printedSegments.length;i++ ){
-        sceneDos.remove(printedSegments[i]);
-    }
-    printedSegments = [];
+function logLength(){
+    console.log(lengths)
+
 }
+
+let printedLengths:any = [];
+function printCosas(){
+    for (let i = 0; i < lengths.length; i++){
+
+        
+
+        let distMean = (lengths[i][2] + lengths[i][3])/2
+
+        const inversaD = 10/distMean
+
+        const geometry = new THREE.PlaneGeometry(lengths[i][1], inversaD); 
+        const material = new THREE.MeshBasicMaterial({ color: lengths[i][4], side: THREE.DoubleSide });
+        const plane = new THREE.Mesh(geometry, material);
+
+        plane.position.set(lengths[i][0], 0, 1);
+        printedLengths.push(plane);
+        sceneDos.add(plane);
+    }
+}
+
 
 
 ////////---------------------- Animation
