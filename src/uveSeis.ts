@@ -46,6 +46,9 @@ function onClick(event:any) {
     console.log(`click x -> ${mouseX}  y ->${mouseY}`);
     printRayPosition();
     logLength();
+    refreshPosition(mouseX, mouseY)
+    clickVar = !clickVar;
+    console.log(clickVar);
 }
 
 
@@ -144,7 +147,7 @@ function createRay(xA:number, yA:number, rad:number){
 function manyRays(nRays:number, xA:number, yA:number){
     let rays:any = []
     const degrees = 60 / nRays;
-    const rad = degrees * (Math.PI/180);
+    const rad = ((degrees * (Math.PI/180))*-1);
 
     for(let i = 1; i<=nRays; i++){
         const oneRay = createRay(xA, yA, rad*i)
@@ -255,9 +258,6 @@ function castRays(mouseX:number, mouseY:number) {
         }
     }
 
-
-   
-
     //console.log(newSegments);
 }
 
@@ -307,7 +307,7 @@ function clearCollision(){
 }
 
 
-createManyWall(10);
+createManyWall(5);
 //createVericalWall();
 getManyRays(360);
 
@@ -332,28 +332,62 @@ function clearLength(){
     printedLengths = [];
 }
 
+function calcTotalLength() {
+    let totalLength = 0; 
+    for (let i = 0; i < collisionData.length - 1; i++) {
+        if(collisionData[i].wall !== collisionData[i+1].wall){
+            continue;
+        }
+        const puntoInicio = collisionData[i];
+        const puntoFin = collisionData[i + 1];
+        const longitud1 = Math.sqrt(((puntoFin.x - puntoInicio.x) ** 2) + ((puntoFin.y - puntoInicio.y) ** 2));
+        totalLength += longitud1;
+    }
+    return totalLength;
+}
+
+function getRandomRgb(){
+    let r = getRandomInt(256); 
+    let g = getRandomInt(256);
+    let b = getRandomInt(256);
+  
+    let rgb = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    return rgb;
+}
+
+function getRgbByDistance(distance:number) {
+
+    let grayValue = Math.floor(((15 - distance) / 15) * 255);
+
+    if (distance > 15){ grayValue = 50}
+
+    let grayHex = grayValue.toString(16).padStart(2, '0');
+
+    let rgb = `#${grayHex}${grayHex}${grayHex}`;
+    return rgb;
+}
+
 let lengths:any = [];
 function calcLength(){
+    const totalLength = calcTotalLength();
+    let scaleFactor = 20 / totalLength; 
     let xPosition = -10;
     for (let i = 0; i < collisionData.length - 1; i++) {
         const puntoInicio = collisionData[i];
         const puntoFin = collisionData[i + 1];
 
-        const longitud1 = Math.sqrt(((puntoFin.x - puntoInicio.x) ** 2) + ((puntoFin.y - puntoInicio.y) ** 2));
+        const longitud1 = Math.sqrt(((puntoFin.x - puntoInicio.x) ** 2) + ((puntoFin.y - puntoInicio.y) ** 2)) * scaleFactor;;
         const segmentStartX = xPosition + longitud1 / 2;
 
         if(collisionData[i].wall !== collisionData[i+1].wall){
             continue;
         }
+        let distMean = (puntoInicio.z + puntoFin.z)/2
 
-        let r = getRandomInt(256); 
-        let g = getRandomInt(256);
-        let b = getRandomInt(256);
-      
-        let rgb = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        const color = getRgbByDistance(distMean);
 
         lengths.push([
-            segmentStartX, longitud1, puntoInicio.z, puntoFin.z, rgb
+            segmentStartX, longitud1, distMean, color
         ]);
 
         xPosition = xPosition + longitud1;
@@ -365,18 +399,22 @@ function logLength(){
 
 }
 
+let clickVar = true;
+
 let printedLengths:any = [];
 function printCosas(){
     for (let i = 0; i < lengths.length; i++){
 
-        
 
-        let distMean = (lengths[i][2] + lengths[i][3])/2
-
-        const inversaD = 10/distMean
+        let inversaD = 0;
+        if(clickVar){
+            inversaD = 10/(Math.sqrt(lengths[i][2]));
+        }else {
+            inversaD = 10/(lengths[i][2]);
+        }
 
         const geometry = new THREE.PlaneGeometry(lengths[i][1], inversaD); 
-        const material = new THREE.MeshBasicMaterial({ color: lengths[i][4], side: THREE.DoubleSide });
+        const material = new THREE.MeshBasicMaterial({ color: lengths[i][3], side: THREE.DoubleSide });
         const plane = new THREE.Mesh(geometry, material);
 
         plane.position.set(lengths[i][0], 0, 1);
