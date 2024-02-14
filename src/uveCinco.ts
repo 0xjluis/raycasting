@@ -101,10 +101,19 @@ function createManyWall(nWalls:number){
         const yA = Math.random() * 10 - 5; 
         const xB = Math.random() * 10 - 5; 
         const yB = Math.random() * 10 - 5; 
-
+        console.log(xA, yA, xB, yB)
         createWall(xA, yA, xB, yB);
     }
-    //createBox()
+    createBox()
+    printWalls();
+}
+
+function createVericalWall(){
+    const xA = 2;
+    const yA = 5;
+    const xB = 2;
+    const yB = -5;
+    createWall(xA, yA, xB, yB);
     printWalls();
 }
 
@@ -174,6 +183,7 @@ let collisionPoints:any = [];
 let wallsData:any = []
 function castRays(mouseX:number, mouseY:number) {
     wallsData.forEach((data:any) => data.intersections = []);
+    let minX = Infinity;
     for (let i = 0; i < raysPostion.length; i++) {
         let closestIntersection = null;
         let shortestDistance = Infinity;
@@ -233,10 +243,14 @@ function castRays(mouseX:number, mouseY:number) {
                 point: closestIntersection,
                 distance: shortestDistance
             });
-                } else {
+            if(closestIntersection.x < minX){
+                minX = closestIntersection.x
+            }
+        } else {
             ///console.log(`😁 No intersection found for ray #${i + 1}.`);
         }
     }
+
 
     for (let k = 0; k < wallsData.length; k++) {
         if (wallsData[k].intersections.length === 0) {
@@ -248,27 +262,27 @@ function castRays(mouseX:number, mouseY:number) {
 
         for (let l = 0; l <= wallsData[k].intersections.length; l++) {
             if (l === 0) { 
-                const pointOneX = walls[k][0].x;
+                const pointOneX = walls[k][0].x - minX;
                 const pointOneY = walls[k][0].y;
-                const pointTwoX = wallsData[k].intersections[0].point.x;
+                const pointTwoX = wallsData[k].intersections[0].point.x - minX;
                 const pointTwoY = wallsData[k].intersections[0].point.y;
                 const heigth = wallsData[k].intersections[0].distance;
                 segments.push([pointOneX, pointOneY, pointTwoX, pointTwoY, heigth]);
                 continue;
             }
             if (l === wallsData[k].intersections.length) { 
-                const pointOneX = wallsData[k].intersections[l-1].point.x;
+                const pointOneX = wallsData[k].intersections[l-1].point.x - minX;
                 const pointOneY = wallsData[k].intersections[l-1].point.y;
-                const pointTwoX = walls[k][1].x; 
+                const pointTwoX = walls[k][1].x - minX; 
                 const pointTwoY = walls[k][1].y;
                 const heigth = wallsData[k].intersections[l-1].distance;
                 segments.push([pointOneX, pointOneY, pointTwoX, pointTwoY, heigth]);
                 break; 
             }
 
-            const pointOneX = wallsData[k].intersections[l-1].point.x;
+            const pointOneX = wallsData[k].intersections[l-1].point.x - minX;
             const pointOneY = wallsData[k].intersections[l-1].point.y;
-            const pointTwoX = wallsData[k].intersections[l].point.x;
+            const pointTwoX = wallsData[k].intersections[l].point.x - minX;
             const pointTwoY = wallsData[k].intersections[l].point.y;
             const heigth = wallsData[k].intersections[l].distance;
             segments.push([pointOneX, pointOneY, pointTwoX, pointTwoY, heigth]);
@@ -276,7 +290,7 @@ function castRays(mouseX:number, mouseY:number) {
         newSegments.push(segments);
     }
 
-    console.log(newSegments);
+    //console.log(newSegments);
 }
 
 function getRandomInt(max: number): number {
@@ -323,8 +337,9 @@ function clearCollision(){
 }
 
 
-createManyWall(10);
-getManyRays(10);
+createManyWall(1);
+//createVericalWall();
+getManyRays(3);
 
 ////////---------------------- 3D SCENE
 
@@ -346,29 +361,31 @@ function printPartialWalls() {
         const group = newSegments[i];
 
         for (let j = 0; j < group.length; j++) {
+        let r = getRandomInt(256); 
+        let g = getRandomInt(256);
+        let b = getRandomInt(256);
+      
+        let rgb = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+
             const segment = group[j];
-            const xA = segment[0], yA = segment[1], xB = segment[2], yB = segment[3];
+            const xA = segment[0], yA = segment[1], xB = segment[2], yB = segment[1]; // Usa yA para ambos puntos
             const thickness = (segment[4]); 
+            const distancia = thickness
+            const inversaD = 10/distancia
+            //const decimaInD = inversaD *2
+            
+            const length = Math.abs(xB - xA);
+            const longitud1 = Math.sqrt(((xB - xA) ** 2) + ((yB - yA) ** 2));
 
-            const length = Math.sqrt((xB - xA) ** 2 + (yB - yA) ** 2);
-            const angle = Math.atan2(yB - yA, xB - xA);
-
-            let r = getRandomInt(256); 
-            let g = getRandomInt(256);
-            let b = getRandomInt(256);
-          
-            let rgb = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-
-            const geometry = new THREE.PlaneGeometry(1, 1); // Ajusta según tus necesidades
+            const geometry = new THREE.PlaneGeometry(longitud1, 1); 
             const material = new THREE.MeshBasicMaterial({ color: rgb, side: THREE.DoubleSide });
             const plane = new THREE.Mesh(geometry, material);
 
+            // Posiciona el plano en el punto medio del segmento ajustado
             const midX = (xA + xB) / 2;
-            const midY = (yA + yB) / 2;
-            plane.position.set(midX, midY, 0); 
-            plane.rotation.z = angle; 
+            plane.position.set(xA, j, 1); // Ajusta Z si es necesario
 
-            printedSegments.push(plane)
+            printedSegments.push(plane);
             sceneDos.add(plane);
         }
     }
